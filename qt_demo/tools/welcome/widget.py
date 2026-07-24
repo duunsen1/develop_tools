@@ -72,10 +72,6 @@ class WelcomeWidget(BaseToolWidget):
                 border-radius: 12px;
                 border: 1px solid #E8ECF1;
             }
-            QFrame:hover {
-                border: 1px solid #3498DB;
-                background-color: #F8FAFF;
-            }
         """)
 
         layout = QVBoxLayout(card)
