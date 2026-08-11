@@ -12,6 +12,8 @@ a = Analysis(
     datas=[
         # quick_cmds 的外部脚本：widget.py 用 __file__ 定位 scripts 目录
         ('qt_demo/tools/quick_cmds/scripts', 'qt_demo/tools/quick_cmds/scripts'),
+        # 投屏 scrcpy 二进制：widget.py 用 __file__ 定位 scrcpy 子目录
+        ('qt_demo/tools/scrcpy/scrcpy', 'qt_demo/tools/scrcpy/scrcpy'),
         # 程序图标：main.py 从 _internal/assets 加载
         ('assets/devtools.ico', 'assets'),
     ],

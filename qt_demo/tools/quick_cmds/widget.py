@@ -26,6 +26,7 @@ DEFAULT_NT_LOG_DIR = r"E:\PowerShell"
 CMD_OPEN_FP = "adb shell am start -n com.goodix.fingerprint.setting/.SPMT1Activity"
 CMD_REBOOT_EDL = "adb reboot edl"
 SKIP_SETUP_STEPS = [
+    {"cmd": "adb root", "timeout": 30, "ignore_error": True},
     {"cmd": "adb shell pm disable com.android.setupwizard.overlay", "timeout": 30, "ignore_error": False},
     {"cmd": "adb shell settings put secure user_setup_complete 1", "timeout": 30, "ignore_error": False},
     {"cmd": "adb shell settings put global device_provisioned 1", "timeout": 30, "ignore_error": False},
@@ -140,7 +141,7 @@ class QuickCmdsWidget(BaseToolWidget):
         btn_skip_setup.setFixedWidth(160)
         btn_skip_setup.setStyleSheet(self._btn_style("#E74C3C", "#C0392B"))
         btn_skip_setup.clicked.connect(self._run_skip_setup)
-        dev_layout.addLayout(self._op_row(btn_skip_setup, "pm disable setupwizard + settings put ×2 + 重启"))
+        dev_layout.addLayout(self._op_row(btn_skip_setup, "adb root + pm disable setupwizard + settings put ×2 + 重启"))
 
         self._btns["打开指纹校准界面"] = btn_open_fp
         self._btns["进到刷机模式 (EDL)"] = btn_reboot_edl

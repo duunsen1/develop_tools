@@ -6,3 +6,11 @@ dist/DevTools/_internal/**/*.pyc filter=lfs diff=lfs merge=lfs -text
 dist/DevTools/_internal/**/*.so filter=lfs diff=lfs merge=lfs -text
 dist/DevTools/_internal/python314.dll filter=lfs diff=lfs merge=lfs -text
 dist/DevTools/_internal/VCRUNTIME*.dll filter=lfs diff=lfs merge=lfs -text
+
+# scrcpy 投屏二进制（源码目录 + 打包产物）
+qt_demo/tools/scrcpy/scrcpy/*.exe filter=lfs diff=lfs merge=lfs -text
+qt_demo/tools/scrcpy/scrcpy/*.dll filter=lfs diff=lfs merge=lfs -text
+qt_demo/tools/scrcpy/scrcpy/scrcpy-server filter=lfs diff=lfs merge=lfs -text
+dist/DevTools/_internal/qt_demo/tools/scrcpy/scrcpy/*.exe filter=lfs diff=lfs merge=lfs -text
+dist/DevTools/_internal/qt_demo/tools/scrcpy/scrcpy/*.dll filter=lfs diff=lfs merge=lfs -text
+dist/DevTools/_internal/qt_demo/tools/scrcpy/scrcpy/scrcpy-server filter=lfs diff=lfs merge=lfs -text
