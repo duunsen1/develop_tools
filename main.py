@@ -14,10 +14,13 @@ from PySide6.QtCore import Qt
 from qt_demo.main_window import MainWindow
 from qt_demo.tools.welcome.widget import WelcomeWidget
 from qt_demo.tools.fingerprint_analysis.widget import FingerprintAnalysisWidget
+from qt_demo.tools.adb_flash.widget import ADBFlashWidget
+from qt_demo.tools.fastboot_flash.widget import FastbootFlashWidget
+from qt_demo.tools.log_capture.widget import LogCaptureWidget
+from qt_demo.tools.scrcpy.widget import ScrcpyWidget
 
 
 def main():
-    # 启用高 DPI 缩放
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
@@ -26,11 +29,9 @@ def main():
     app.setApplicationName("DevTools")
     app.setApplicationVersion("1.0.0")
 
-    # 设置全局字体
     font = QFont("Microsoft YaHei UI", 10)
     app.setFont(font)
 
-    # 全局样式表
     app.setStyleSheet("""
         QToolTip {
             background-color: #2C3E50;
@@ -42,19 +43,18 @@ def main():
         }
     """)
 
-    # 创建主窗口
     window = MainWindow()
 
-    # 注册工具
     window.register_tools(
-        WelcomeWidget(),           # 首页
-        FingerprintAnalysisWidget(),  # 指纹解锁速度分析
+        WelcomeWidget(),
+        FingerprintAnalysisWidget(),
+        ADBFlashWidget(),
+        FastbootFlashWidget(),
+        LogCaptureWidget(),
+        ScrcpyWidget(),
     )
 
-    # 切换到首页
     window._sidebar.set_current_index(0)
-
-    # 显示窗口
     window.show()
 
     sys.exit(app.exec())

@@ -51,12 +51,17 @@ class WelcomeWidget(BaseToolWidget):
 
         tools_info = [
             ("🔍", "指纹解锁速度分析", "分析 Android 指纹解锁日志，统计解锁时间并生成 Excel 报告"),
+            ("📱", "ADB 刷写", "通过 ADB push 将文件刷入设备指定路径"),
+            ("⚡", "Fastboot 刷写", "通过 Fastboot 刷入镜像文件到设备分区"),
+            ("📋", "日志抓取", "实时抓取 Android 设备日志（logcat/kmsg/qsee_log）并过滤关键字"),
+            ("🖥", "投屏 (Scrcpy)", "将 Android 设备屏幕投射到 PC"),
             ("📦", "更多工具即将上线", "正在开发中，敬请期待..."),
         ]
 
+        cols = 3
         for i, (icon, name, desc) in enumerate(tools_info):
             card = self._create_card(icon, name, desc)
-            grid.addWidget(card, i // 2, i % 2)
+            grid.addWidget(card, i // cols, i % cols)
 
         layout.addLayout(grid)
         layout.addStretch()
@@ -65,7 +70,7 @@ class WelcomeWidget(BaseToolWidget):
 
     def _create_card(self, icon: str, name: str, desc: str) -> QFrame:
         card = QFrame()
-        card.setFixedSize(360, 160)
+        card.setFixedSize(280, 150)
         card.setStyleSheet("""
             QFrame {
                 background-color: white;

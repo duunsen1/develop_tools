@@ -36,6 +36,7 @@ FILTER_KEYWORDS = [
     "SURFACE SHOW",
     "Time from finger down to success notification",
     "KeyguardViewMediator",
+    "WMLsVisInteractor",
     "KPI time",
 ]
 
@@ -58,7 +59,7 @@ STEPS = [
     ("onAuthenticated",         "UI收到匹配成功",          "timestamp"),
     ("Time from finger down to success notification", "HAL按压到解锁(ms)", "extract_ms"),
     ("KPI time",                "HAL算法时间(ms)",         "extract_ms"),
-    ("KeyguardViewMediator: exitKeyguardAndFinishSurfaceBehindRemoteAnimation", "开始显示应用画面", "timestamp"),
+    (("surfaceBehindVisibility=true", "exitKeyguardAndFinishSurfaceBehindRemoteAnimation"), "开始显示应用画面", "timestamp"),
     ("EVENT_FINGER_UP",         "手指抬起",               "timestamp"),
 ]
 
@@ -156,7 +157,8 @@ def analyze_log_file(filepath: str) -> list[dict]:
         for keyword, label, mode in STEPS[1:]:
             if current[label] is not None:
                 continue
-            if keyword not in line:
+            keywords = keyword if isinstance(keyword, (tuple, list)) else (keyword,)
+            if not any(k in line for k in keywords):
                 continue
             if mode == "timestamp":
                 current[label] = parse_timestamp(line)
