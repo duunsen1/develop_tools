@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# PyInstaller 打包中间产物
+build/
+
+# 运行时生成
+filtered_logs/
+logs_extracted/
+analysis_results/
+devtools_screenshot.png
