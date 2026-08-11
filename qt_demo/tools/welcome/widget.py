@@ -55,6 +55,7 @@ class WelcomeWidget(BaseToolWidget):
             ("⚡", "Fastboot 刷写", "通过 Fastboot 刷入镜像文件到设备分区"),
             ("📋", "日志抓取", "实时抓取 Android 设备日志（logcat/kmsg/qsee_log）并过滤关键字"),
             ("🖥", "投屏 (Scrcpy)", "将 Android 设备屏幕投射到 PC"),
+            ("📋", "常用指令", "一键执行设备快捷操作与日志/构建导出"),
             ("📦", "更多工具即将上线", "正在开发中，敬请期待..."),
         ]
 

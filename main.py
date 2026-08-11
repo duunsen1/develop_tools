@@ -18,6 +18,7 @@ from qt_demo.tools.adb_flash.widget import ADBFlashWidget
 from qt_demo.tools.fastboot_flash.widget import FastbootFlashWidget
 from qt_demo.tools.log_capture.widget import LogCaptureWidget
 from qt_demo.tools.scrcpy.widget import ScrcpyWidget
+from qt_demo.tools.quick_cmds.widget import QuickCmdsWidget
 
 
 def main():
@@ -52,6 +53,7 @@ def main():
         FastbootFlashWidget(),
         LogCaptureWidget(),
         ScrcpyWidget(),
+        QuickCmdsWidget(),
     )
 
     window._sidebar.set_current_index(0)
