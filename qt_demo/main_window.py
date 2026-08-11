@@ -6,7 +6,7 @@ import subprocess
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QStackedWidget,
-    QStatusBar, QApplication, QLabel,
+    QStatusBar, QApplication, QLabel, QPushButton,
 )
 from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QIcon, QFont
@@ -72,6 +72,19 @@ class MainWindow(QMainWindow):
         self._lbl_fastboot.setStyleSheet("font-size: 12px; font-weight: bold; color: red; padding: 0 10px;")
         self._status.addPermanentWidget(self._lbl_fastboot)
 
+        # 重启设备按钮（常驻状态栏，随手可点）
+        self._btn_reboot = QPushButton("↻ 重启设备")
+        self._btn_reboot.setStyleSheet("""
+            QPushButton {
+                background-color: #E67E22; color: white; font-weight: bold;
+                border: none; border-radius: 4px; padding: 4px 14px; font-size: 12px;
+            }
+            QPushButton:hover { background-color: #CA6F1E; }
+            QPushButton:disabled { background-color: #BDC3C7; }
+        """)
+        self._btn_reboot.clicked.connect(self._reboot_device)
+        self._status.addPermanentWidget(self._btn_reboot)
+
         self._status.showMessage("就绪")
 
     def _start_device_monitor(self):
@@ -110,6 +123,22 @@ class MainWindow(QMainWindow):
         except Exception:
             self._lbl_fastboot.setText("Fastboot: N")
             self._lbl_fastboot.setStyleSheet("font-size: 12px; font-weight: bold; color: red; padding: 0 10px;")
+
+    def _reboot_device(self):
+        """重启设备 (adb reboot)"""
+        self._btn_reboot.setEnabled(False)
+        self._status.showMessage("正在重启设备...", 0)
+        try:
+            p = subprocess.run("adb reboot", shell=True, capture_output=True, text=True, timeout=10)
+            if p.returncode == 0:
+                self._status.showMessage("设备重启中，稍后自动恢复连接", 8000)
+            else:
+                self._status.showMessage(f"重启失败: {p.stderr.strip() or 'adb 返回非零'}", 5000)
+        except subprocess.TimeoutExpired:
+            self._status.showMessage("重启命令超时（设备可能已断开）", 5000)
+        except Exception as e:
+            self._status.showMessage(f"重启出错: {e}", 5000)
+        self._btn_reboot.setEnabled(True)
 
     def register_tool(self, widget: BaseToolWidget):
         name = widget.tool_name()
