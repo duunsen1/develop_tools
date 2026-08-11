@@ -12,6 +12,8 @@ a = Analysis(
     datas=[
         # quick_cmds 的外部脚本：widget.py 用 __file__ 定位 scripts 目录
         ('qt_demo/tools/quick_cmds/scripts', 'qt_demo/tools/quick_cmds/scripts'),
+        # 程序图标：main.py 从 _internal/assets 加载
+        ('assets/devtools.ico', 'assets'),
     ],
     hiddenimports=[],
     hookspath=[],
@@ -76,6 +78,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,          # GUI 程序，不显示控制台
+    icon='assets/devtools.ico',   # exe 文件图标
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

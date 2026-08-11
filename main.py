@@ -8,7 +8,7 @@ import sys
 import os
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIcon
 from PySide6.QtCore import Qt
 
 from qt_demo.main_window import MainWindow
@@ -29,6 +29,14 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("DevTools")
     app.setApplicationVersion("1.0.0")
+
+    # 窗口图标：兼容源码运行和 PyInstaller 打包
+    if getattr(sys, "frozen", False):
+        icon_path = os.path.join(os.path.dirname(sys.executable), "_internal", "assets", "devtools.ico")
+    else:
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "devtools.ico")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
 
     font = QFont("Microsoft YaHei UI", 10)
     app.setFont(font)
