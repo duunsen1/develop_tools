@@ -16,6 +16,8 @@ try:
 except ImportError:
     Workbook = None
 
+from ...win_proc import CREATE_NO_WINDOW
+
 # ===== 配置常量 =====
 EXTRACTED_DIR = "logs_extracted"
 FILTERED_DIR = "filtered_logs"
@@ -206,12 +208,28 @@ def filter_log_file(input_path: str, output_path: str) -> tuple[int, int]:
     return total, matched
 
 
+# 匹配 android.log 及滚动日志 (android.log.N)
+ANDROID_LOG_RE = re.compile(r"^android\.log(\.\d+)?$", re.IGNORECASE)
+
+
+def _concat_order(log_path: str):
+    """滚动日志按时间排序(升序=旧到新): android.log.N 数值越大越旧, android.log 最新"""
+    base = os.path.basename(log_path)
+    m = re.match(r"android\.log(?:\.(\d+))?$", base, re.IGNORECASE)
+    if m and m.group(1):
+        return -int(m.group(1))
+    return 0  # android.log 为最新，排最后
+
+
 def find_android_logs(base_dir: str) -> list[str]:
-    """在解压目录中递归查找 general_log/android.log"""
+    """在解压目录中递归查找 general_log 下的 android.log 及滚动日志"""
     results = []
     for root, dirs, files in os.walk(base_dir):
-        if "general_log" in root and "android.log" in files:
-            results.append(os.path.join(root, "android.log"))
+        if "general_log" not in root:
+            continue
+        for f in files:
+            if ANDROID_LOG_RE.match(f):
+                results.append(os.path.join(root, f))
     results.sort()
     return results
 
@@ -229,7 +247,7 @@ def extract_zip_files(zip_files: list[str]) -> list[str]:
     sz_exe = None
     for p in sz_paths:
         try:
-            subprocess.run([p, "--help"], capture_output=True, timeout=5)
+            subprocess.run([p, "--help"], capture_output=True, timeout=5, creationflags=CREATE_NO_WINDOW)
             sz_exe = p
             break
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -243,7 +261,7 @@ def extract_zip_files(zip_files: list[str]) -> list[str]:
 
         if sz_exe:
             cmd = [sz_exe, "x", f"-p{PASSWORD}", f"-o{dest_dir}", "-mmt=on", "-aoa", zf_path]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             if result.returncode != 0:
                 raise RuntimeError(f"7z 解压失败 ({zf_name}): {result.stderr.strip()}")
         else:
@@ -259,8 +277,9 @@ def extract_zip_files(zip_files: list[str]) -> list[str]:
         logs = find_android_logs(dest_dir)
         if not logs:
             for root, dirs, files in os.walk(dest_dir):
-                if "android.log" in files:
-                    logs.append(os.path.join(root, "android.log"))
+                for f in files:
+                    if ANDROID_LOG_RE.match(f):
+                        logs.append(os.path.join(root, f))
             logs.sort()
         all_logs.extend(logs)
 
@@ -461,21 +480,35 @@ def run_analysis(log_files: list[str]) -> dict[str, list[dict]]:
     if zip_files:
         analysis_logs.append(f"--- 解压 {len(zip_files)} 个 zip 文件 ---")
         extracted_logs = extract_zip_files(zip_files)
-        analysis_logs.append(f"解压后找到 {len(extracted_logs)} 个 android.log")
+        analysis_logs.append(f"解压后找到 {len(extracted_logs)} 个 android.log 日志(含滚动)")
+
+        # 按压缩包分组，同一压缩包的滚动日志按时间顺序合并后分析，共用一个 tab
+        by_zip = {}
         for log_path in extracted_logs:
             rel = os.path.relpath(log_path, EXTRACTED_DIR)
-            parts = rel.replace("\\", "/").split("/")
-            zip_name = parts[0] if parts else "unknown"
-            ntlog_name = parts[-2] if len(parts) >= 2 else "unknown"
-            out_filename = f"{zip_name}__{ntlog_name}__android_fingerprint_filtered.log"
-            dst_path = os.path.join(FILTERED_DIR, out_filename)
-            total, matched = filter_log_file(log_path, dst_path)
-            analysis_logs.append(f"  {zip_name}/{ntlog_name}: {total}行 -> 匹配{matched}行")
+            zip_name = rel.replace("\\", "/").split("/")[0] if rel else "unknown"
+            by_zip.setdefault(zip_name, []).append(log_path)
+
+        os.makedirs(FILTERED_DIR, exist_ok=True)
+        for zip_name, log_paths in by_zip.items():
+            log_paths.sort(key=_concat_order)
+            dst_path = os.path.join(FILTERED_DIR, f"{zip_name}__android_fingerprint_filtered.log")
+            matched = 0
+            total = 0
+            with open(dst_path, "w", encoding="utf-8") as fout:
+                for lp in log_paths:
+                    with open(lp, "r", encoding="utf-8", errors="ignore") as fin:
+                        for line in fin:
+                            total += 1
+                            if FILTER_PATTERN.search(line):
+                                fout.write(line)
+                                matched += 1
+            analysis_logs.append(f"  {zip_name}: 合并 {len(log_paths)} 个日志 -> {total}行 -> 匹配{matched}行")
 
             unlocks = analyze_log_file(dst_path)
             valid = [u for u in unlocks if u.get("指纹匹配成功") is not None]
             analysis_logs.append(f"    检测到 {len(unlocks)} 次按压, {len(valid)} 次成功解锁")
-            all_results[f"{zip_name}/{ntlog_name}"] = valid
+            all_results[zip_name] = valid
 
     # 处理 log/txt 文件：直接过滤 → 分析
     if direct_logs:

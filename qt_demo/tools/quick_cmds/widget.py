@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from ...base_tool_widget import BaseToolWidget
+from ...win_proc import CREATE_NO_WINDOW
 
 
 SCRIPTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts")
@@ -56,11 +57,16 @@ class CommandWorker(QThread):
                     self.output.emit("已停止")
                     break
                 cmd = step["cmd"]
-                self.output.emit(f"[{i}/{n}] >>> {cmd}")
+                # 列表命令直接创建进程(不经 cmd.exe)，避免路径里的 & | ^ 等字符
+                # 被当作 shell 命令分隔符拆成多条命令；字符串命令保持原有行为
+                is_list = isinstance(cmd, (list, tuple))
+                display = cmd if isinstance(cmd, str) else subprocess.list2cmdline(cmd)
+                self.output.emit(f"[{i}/{n}] >>> {display}")
                 try:
                     p = subprocess.run(
-                        cmd, shell=True, capture_output=True, text=True,
+                        cmd, shell=not is_list, capture_output=True, text=True,
                         errors="replace", timeout=step.get("timeout", 30),
+                        creationflags=CREATE_NO_WINDOW,
                     )
                     if p.stdout.strip():
                         self.output.emit(p.stdout.strip())
@@ -68,14 +74,14 @@ class CommandWorker(QThread):
                         self.output.emit(p.stderr.strip())
                     if p.returncode != 0:
                         if step.get("ignore_error", False):
-                            self.output.emit(f"[WARN] exit={p.returncode} (已忽略): {cmd}")
+                            self.output.emit(f"[WARN] exit={p.returncode} (已忽略): {display}")
                         else:
-                            raise RuntimeError(f"命令失败 (exit={p.returncode}): {cmd}")
+                            raise RuntimeError(f"命令失败 (exit={p.returncode}): {display}")
                 except subprocess.TimeoutExpired:
                     if step.get("ignore_error", False):
-                        self.output.emit(f"[WARN] 超时 (已忽略): {cmd}")
+                        self.output.emit(f"[WARN] 超时 (已忽略): {display}")
                     else:
-                        raise RuntimeError(f"命令超时: {cmd}")
+                        raise RuntimeError(f"命令超时: {display}")
             self.finished.emit(True, "操作完成")
         except Exception as e:
             self.output.emit(f"ERROR: {e}")
@@ -83,8 +89,12 @@ class CommandWorker(QThread):
 
 
 def _ps1_cmd(script_path, source_path):
-    arg = subprocess.list2cmdline([source_path])
-    return f'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{script_path}" -Yes -NoOpen {arg}'
+    # 返回命令列表，subprocess 直接创建进程，不经过 cmd.exe，
+    # 避免路径中的 & | ^ 等字符被 shell 拆成多条命令
+    return [
+        "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", script_path, "-Yes", "-NoOpen", source_path,
+    ]
 
 
 class QuickCmdsWidget(BaseToolWidget):
@@ -261,7 +271,7 @@ class QuickCmdsWidget(BaseToolWidget):
     def _check_env(self):
         self._output.clear()
         try:
-            p = subprocess.run("adb version", shell=True, capture_output=True, text=True, timeout=5)
+            p = subprocess.run("adb version", shell=True, capture_output=True, text=True, timeout=5, creationflags=CREATE_NO_WINDOW)
             self._env_label.setText("ADB 环境正常")
             self._env_label.setStyleSheet("font-size: 13px; color: green; font-weight: bold;")
             self._output.append(f">>> adb version\n{p.stdout.strip()}")

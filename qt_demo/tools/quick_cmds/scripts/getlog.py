@@ -6,6 +6,9 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import zipfile
 
+# 隐藏子进程(adb/7z)的控制台窗口，避免 GUI 程序启动时弹黑窗
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 class AdbUtil:
     def __init__(self, device_id=None):
         """
@@ -19,7 +22,7 @@ class AdbUtil:
         内部方法，执行命令并返回结果
         """
         try:
-            result = subprocess.run(cmd_list, capture_output=True, text=True)
+            result = subprocess.run(cmd_list, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             if result.returncode != 0:
                 raise RuntimeError(result.stderr.strip())
             return result.stdout.strip()
@@ -57,7 +60,7 @@ class AdbUtil:
             cmd += ["-s", self.device_id]
         cmd += ["pull", remote_path, local_path]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
         if result.returncode == 0:
             print("拉取成功:", result.stdout.strip())
         else:
@@ -80,7 +83,7 @@ def unzip_with_7z(zip_path: Path, dest_dir: Path, password: str):
         "-y"  # 自动覆盖
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
         if result.returncode == 0:
             return f"解压完成: {zip_path} → {dest_dir}"
         else:

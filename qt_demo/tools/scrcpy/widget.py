@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QThread
 
 from ...base_tool_widget import BaseToolWidget
+from ...win_proc import CREATE_NO_WINDOW
 
 
 class ScrcpyWidget(BaseToolWidget):
@@ -79,7 +80,7 @@ class ScrcpyWidget(BaseToolWidget):
     def _check_device(self):
         self._output.clear()
         try:
-            p = subprocess.run("adb devices", shell=True, capture_output=True, text=True, timeout=5)
+            p = subprocess.run("adb devices", shell=True, capture_output=True, text=True, timeout=5, creationflags=CREATE_NO_WINDOW)
             self._output.append(f">>> adb devices\n{p.stdout}")
             lines = [l for l in p.stdout.splitlines()[1:] if l.strip() and "\tdevice" in l]
             if lines:
@@ -109,7 +110,7 @@ class ScrcpyWidget(BaseToolWidget):
         try:
             default_adb = os.path.join(scrcpy_dir, "adb.exe")
             adb_path = default_adb if os.path.exists(default_adb) else "adb"
-            p = subprocess.run([adb_path, "devices"], capture_output=True, text=True, check=True)
+            p = subprocess.run([adb_path, "devices"], capture_output=True, text=True, check=True, creationflags=CREATE_NO_WINDOW)
             devices = [l.split("\t")[0] for l in p.stdout.splitlines()[1:] if "\tdevice" in l]
             if not devices:
                 self._output.append("ERROR: No device connected!")
@@ -122,7 +123,7 @@ class ScrcpyWidget(BaseToolWidget):
 
         try:
             self._output.append(f">>> Starting scrcpy for {len(devices)} device(s)...")
-            subprocess.Popen([scrcpy_exe], cwd=scrcpy_dir, creationflags=subprocess.CREATE_NO_WINDOW)
+            subprocess.Popen([scrcpy_exe], cwd=scrcpy_dir, creationflags=CREATE_NO_WINDOW)
             self._output.append("Scrcpy started! Check device for authorization prompt.")
             QMessageBox.information(self, "投屏启动", "投屏程序已启动，请查看设备授权提示！")
         except Exception as e:

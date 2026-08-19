@@ -10,3 +10,15 @@ filtered_logs/
 logs_extracted/
 analysis_results/
 devtools_screenshot.png
+
+# 敏感配置（Jira 本地覆盖配置，勿提交 token）
+jira_config.json
+
+# 运行日志
+devtools.log*
+
+# 旧版打包备份目录（体积巨大，勿提交）
+dist/DevTools_old/
+
+# 任务清单运行数据
+workspace_data.json

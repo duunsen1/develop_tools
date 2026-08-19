@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QThread, QTimer
 
 from ...base_tool_widget import BaseToolWidget
+from ...win_proc import CREATE_NO_WINDOW
 
 HISTORY_FILE = "log_keyword_history.txt"
 DEFAULT_DIR = "D:/Joyboy"
@@ -48,7 +49,8 @@ class LogCaptureWorker(QThread):
         cmd = LOG_TYPES[self._log_type]["cmd"]
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True,
-                                    encoding="utf-8", errors="replace")
+                                    encoding="utf-8", errors="replace",
+                                    creationflags=CREATE_NO_WINDOW)
             fout = open(self._save_path, "a", encoding="utf-8", errors="replace")
             buffer = []
             last_flush = time.time()

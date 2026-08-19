@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QThread
 
 from ...base_tool_widget import BaseToolWidget
+from ...win_proc import CREATE_NO_WINDOW
 
 HISTORY_FILE = "fastboot_file_history.json"
 
@@ -42,14 +43,14 @@ class FastbootWorker(QThread):
     def run(self):
         try:
             self.output.emit(">>> adb wait-for-device")
-            subprocess.run("adb wait-for-device", shell=True, timeout=10)
+            subprocess.run("adb wait-for-device", shell=True, timeout=10, creationflags=CREATE_NO_WINDOW)
             self.output.emit(">>> adb reboot bootloader")
-            subprocess.run("adb reboot bootloader", shell=True, timeout=10)
+            subprocess.run("adb reboot bootloader", shell=True, timeout=10, creationflags=CREATE_NO_WINDOW)
 
             self.output.emit("Waiting for fastboot device...")
             for _ in range(30):
                 time.sleep(1)
-                p = subprocess.run("fastboot devices", shell=True, capture_output=True, text=True)
+                p = subprocess.run("fastboot devices", shell=True, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
                 if "fastboot" in p.stdout:
                     self.output.emit("Fastboot device detected!")
                     break
@@ -58,13 +59,13 @@ class FastbootWorker(QThread):
 
             cmd = f"fastboot flash {self._partition} {self._file}"
             self.output.emit(f">>> {cmd}")
-            p = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            p = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120, creationflags=CREATE_NO_WINDOW)
             self.output.emit(p.stdout.strip())
             if p.returncode != 0:
                 raise RuntimeError(f"Flash failed: {p.stderr.strip()}")
 
             self.output.emit(">>> fastboot reboot")
-            subprocess.run("fastboot reboot", shell=True, timeout=10)
+            subprocess.run("fastboot reboot", shell=True, timeout=10, creationflags=CREATE_NO_WINDOW)
             self.output.emit("SUCCESS: Device rebooting!")
             self.finished.emit(True, "刷写完成，设备已重启")
         except Exception as e:
@@ -167,9 +168,9 @@ class FastbootFlashWidget(BaseToolWidget):
     def _check_env(self):
         self._output.clear()
         try:
-            p = subprocess.run("adb version", shell=True, capture_output=True, text=True, timeout=5)
+            p = subprocess.run("adb version", shell=True, capture_output=True, text=True, timeout=5, creationflags=CREATE_NO_WINDOW)
             self._output.append(f">>> adb version\n{p.stdout.strip()}")
-            p = subprocess.run("fastboot --version", shell=True, capture_output=True, text=True, timeout=5)
+            p = subprocess.run("fastboot --version", shell=True, capture_output=True, text=True, timeout=5, creationflags=CREATE_NO_WINDOW)
             self._output.append(f">>> fastboot --version\n{p.stdout.strip()}")
             self._env_label.setText("环境正常")
             self._env_label.setStyleSheet("font-size: 13px; color: green; font-weight: bold;")

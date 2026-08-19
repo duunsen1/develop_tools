@@ -23,6 +23,9 @@ except ImportError:
     print("需要安装 openpyxl: pip install openpyxl")
     sys.exit(1)
 
+# Windows 下隐藏子进程(7z等)的控制台窗口
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 # ========== 配置区 ==========
 EXTRACTED_DIR = "logs_extracted"
 FILTERED_DIR = "filtered_logs"
@@ -54,7 +57,7 @@ def step1_extract(zip_files: list[str]):
     sz_exe = None
     for p in sz_paths:
         try:
-            subprocess.run([p, "--help"], capture_output=True, timeout=5)
+            subprocess.run([p, "--help"], capture_output=True, timeout=5, creationflags=CREATE_NO_WINDOW)
             sz_exe = p
             break
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -70,7 +73,7 @@ def step1_extract(zip_files: list[str]):
         if sz_exe:
             # 7z 多线程解压: x=保留目录结构, -mmt=on 多线程, -aoa 覆盖
             cmd = [sz_exe, "x", f"-p{PASSWORD}", f"-o{dest_dir}", "-mmt=on", "-aoa", zf_path]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             if result.returncode != 0:
                 print(f"  7z 解压失败: {result.stderr.strip()}")
                 continue
@@ -116,13 +119,29 @@ FILTER_KEYWORDS = [
 FILTER_PATTERN = re.compile("|".join(re.escape(kw) for kw in FILTER_KEYWORDS), re.IGNORECASE)
 
 
+# 匹配 android.log 及滚动日志 (android.log.N)
+ANDROID_LOG_RE = re.compile(r"^android\.log(\.\d+)?$", re.IGNORECASE)
+
+
 def find_android_logs(base_dir: str) -> list[str]:
     results = []
     for root, dirs, files in os.walk(base_dir):
-        if "general_log" in root and "android.log" in files:
-            results.append(os.path.join(root, "android.log"))
+        if "general_log" not in root:
+            continue
+        for f in files:
+            if ANDROID_LOG_RE.match(f):
+                results.append(os.path.join(root, f))
     results.sort()
     return results
+
+
+def _concat_order(log_path: str):
+    """滚动日志按时间排序(升序=旧到新): android.log.N 数值越大越旧, android.log 最新"""
+    base = os.path.basename(log_path)
+    m = re.match(r"android\.log(?:\.(\d+))?$", base, re.IGNORECASE)
+    if m and m.group(1):
+        return -int(m.group(1))
+    return 0  # android.log 为最新，排最后
 
 
 def step2_filter():
@@ -136,28 +155,32 @@ def step2_filter():
         print(f"在 {EXTRACTED_DIR} 中未找到 general_log/android.log")
         return
 
-    print(f"找到 {len(android_logs)} 个 android.log 文件:\n")
+    print(f"找到 {len(android_logs)} 个 android.log 文件(含滚动):\n")
 
+    # 按压缩包分组，同一压缩包的滚动日志按时间顺序合并，共用一个 sheet
+    by_zip = {}
     for log_path in android_logs:
-        print(f"处理: {log_path}")
         rel = os.path.relpath(log_path, EXTRACTED_DIR)
         parts = rel.replace("\\", "/").split("/")
         zip_name = parts[0] if len(parts) > 0 else "unknown"
-        ntlog_name = parts[-2] if len(parts) >= 2 else "unknown"
-        out_filename = f"{zip_name}__{ntlog_name}__android_fingerprint_filtered.log"
-        dst_path = os.path.join(FILTERED_DIR, out_filename)
+        by_zip.setdefault(zip_name, []).append(log_path)
+
+    for zip_name, logs in by_zip.items():
+        logs.sort(key=_concat_order)
+        dst_path = os.path.join(FILTERED_DIR, f"{zip_name}__android_fingerprint_filtered.log")
 
         matched = 0
         total = 0
-        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-        with open(log_path, "r", encoding="utf-8", errors="ignore") as fin, \
-             open(dst_path, "w", encoding="utf-8") as fout:
-            for line in fin:
-                total += 1
-                if FILTER_PATTERN.search(line):
-                    fout.write(line)
-                    matched += 1
-        print(f"  {total} 行 -> 匹配 {matched} 行 -> {dst_path}")
+        with open(dst_path, "w", encoding="utf-8") as fout:
+            for log_path in logs:
+                print(f"处理: {log_path}")
+                with open(log_path, "r", encoding="utf-8", errors="ignore") as fin:
+                    for line in fin:
+                        total += 1
+                        if FILTER_PATTERN.search(line):
+                            fout.write(line)
+                            matched += 1
+        print(f"  {zip_name}: 合并 {len(logs)} 个日志 -> {total} 行 -> 匹配 {matched} 行 -> {dst_path}")
 
     print(f"\n过滤完成 -> {FILTERED_DIR}/\n")
 
@@ -500,7 +523,8 @@ def step3_analyze():
             type_counts[t] = type_counts.get(t, 0) + 1
         type_str = ", ".join(f"{k}={v}" for k, v in type_counts.items())
         print(f"  检测到 {len(unlocks)} 次按压, {len(valid)} 次成功解锁 ({type_str})")
-        short_name = basename.split("__")[1] if "__" in basename else basename[:31]
+        # 从过滤文件名还原标识: xxx__android_fingerprint_filtered.log -> 压缩包名/原文件名
+        short_name = basename.split("__")[0] if "__" in basename else basename[:31]
         all_results[short_name] = valid
 
     if not any(all_results.values()):

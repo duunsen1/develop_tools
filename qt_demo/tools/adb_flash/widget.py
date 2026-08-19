@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QThread
 
 from ...base_tool_widget import BaseToolWidget
+from ...win_proc import CREATE_NO_WINDOW
 
 
 HISTORY_FILE = "adb_file_history.json"
@@ -41,28 +42,28 @@ class FlashWorker(QThread):
                 "adb disable-verity",
             ]:
                 self.output.emit(f">>> {cmd}")
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                p = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30, creationflags=CREATE_NO_WINDOW)
                 self.output.emit(p.stdout.strip())
                 if p.returncode != 0:
                     self.output.emit(p.stderr.strip())
                     if cmd == "adb disable-verity":
                         self.output.emit("disable-verity failed, rebooting...")
-                        subprocess.run("adb reboot", shell=True, timeout=10)
+                        subprocess.run("adb reboot", shell=True, timeout=10, creationflags=CREATE_NO_WINDOW)
                         time.sleep(20)
-                        subprocess.run("adb wait-for-device", shell=True, timeout=60)
-                        subprocess.run("adb root", shell=True, timeout=30)
+                        subprocess.run("adb wait-for-device", shell=True, timeout=60, creationflags=CREATE_NO_WINDOW)
+                        subprocess.run("adb root", shell=True, timeout=30, creationflags=CREATE_NO_WINDOW)
                         continue
                     raise RuntimeError(f"Command failed: {cmd}")
 
             self.output.emit(">>> adb remount")
-            p = subprocess.run("adb remount", shell=True, capture_output=True, text=True, timeout=30)
+            p = subprocess.run("adb remount", shell=True, capture_output=True, text=True, timeout=30, creationflags=CREATE_NO_WINDOW)
             self.output.emit(p.stdout.strip())
             if p.returncode != 0:
                 raise RuntimeError(f"remount failed: {p.stderr.strip()}")
 
             push_cmd = f'adb push "{self._file}" "{self._target}"'
             self.output.emit(f">>> {push_cmd}")
-            p = subprocess.run(push_cmd, shell=True, capture_output=True, text=True, timeout=120)
+            p = subprocess.run(push_cmd, shell=True, capture_output=True, text=True, timeout=120, creationflags=CREATE_NO_WINDOW)
             self.output.emit(p.stdout.strip())
             if p.returncode != 0:
                 raise RuntimeError(f"push failed: {p.stderr.strip()}")
@@ -172,7 +173,7 @@ class ADBFlashWidget(BaseToolWidget):
     def _check_env(self):
         self._output.clear()
         try:
-            p = subprocess.run("adb version", shell=True, capture_output=True, text=True, timeout=5)
+            p = subprocess.run("adb version", shell=True, capture_output=True, text=True, timeout=5, creationflags=CREATE_NO_WINDOW)
             self._env_label.setText("ADB 环境正常")
             self._env_label.setStyleSheet("font-size: 13px; color: green; font-weight: bold;")
             self._output.append(f">>> adb version\n{p.stdout.strip()}")
