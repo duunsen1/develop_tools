@@ -26,6 +26,7 @@ from qt_demo.tools.scrcpy.widget import ScrcpyWidget
 from qt_demo.tools.quick_cmds.widget import QuickCmdsWidget
 from qt_demo.tools.workspace.widget import WorkspaceWidget
 from qt_demo.tools.jira_board.widget import JiraBoardWidget
+from qt_demo.tools.translator.widget import TranslatorWidget
 
 
 def main():
@@ -85,6 +86,7 @@ def main():
         QuickCmdsWidget(),
         WorkspaceWidget(),
         JiraBoardWidget(),
+        TranslatorWidget(),
     )
 
     window._sidebar.set_current_index(0)
