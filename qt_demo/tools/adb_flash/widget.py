@@ -18,10 +18,11 @@ from PySide6.QtCore import Qt, Signal, QThread
 
 from ...base_tool_widget import BaseToolWidget
 from ...win_proc import CREATE_NO_WINDOW
+from ...data_dir import data_dir
 
 
-HISTORY_FILE = "adb_file_history.json"
-TARGET_HISTORY_FILE = "adb_target_history.json"
+HISTORY_FILE = os.path.join(data_dir(), "adb_file_history.json")
+TARGET_HISTORY_FILE = os.path.join(data_dir(), "adb_target_history.json")
 
 
 class FlashWorker(QThread):

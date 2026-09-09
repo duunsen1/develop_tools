@@ -18,6 +18,7 @@ from qt_demo.main_window import MainWindow
 from qt_demo.tools.welcome.widget import WelcomeWidget
 from qt_demo.tools.fingerprint_analysis.widget import FingerprintAnalysisWidget
 from qt_demo.tools.fp_dump.widget import FpDumpWidget
+from qt_demo.tools.tp_diff_viewer.widget import TpDiffViewerWidget
 from qt_demo.tools.adb_flash.widget import ADBFlashWidget
 from qt_demo.tools.fastboot_flash.widget import FastbootFlashWidget
 from qt_demo.tools.log_capture.widget import LogCaptureWidget
@@ -76,6 +77,7 @@ def main():
         WelcomeWidget(),
         FingerprintAnalysisWidget(),
         FpDumpWidget(),
+        TpDiffViewerWidget(),
         ADBFlashWidget(),
         FastbootFlashWidget(),
         LogCaptureWidget(),

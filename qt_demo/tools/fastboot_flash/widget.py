@@ -18,8 +18,9 @@ from PySide6.QtCore import Qt, Signal, QThread
 
 from ...base_tool_widget import BaseToolWidget
 from ...win_proc import CREATE_NO_WINDOW
+from ...data_dir import data_dir
 
-HISTORY_FILE = "fastboot_file_history.json"
+HISTORY_FILE = os.path.join(data_dir(), "fastboot_file_history.json")
 
 PARTITION_MAP = {
     "boot.img": "boot_a",

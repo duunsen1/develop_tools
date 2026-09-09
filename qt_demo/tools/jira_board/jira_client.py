@@ -9,7 +9,9 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-# 本地覆盖配置（可选，优先；cwd 下的 jira_config.json，已加入 .gitignore）
+from ...data_dir import data_dir
+
+# 本地覆盖配置（可选，优先；优先稳定数据目录，其次兼容 cwd/dist 下的旧位置）
 LOCAL_CONFIG = "jira_config.json"
 # 主配置来源：jira_weekly_report 目录下的 config.json
 WEEKLY_REPORT_CONFIG = r"D:\Work\4_脚本\jira_weekly_report\config.json"
@@ -45,7 +47,12 @@ def _read_json_file(path: str) -> dict:
 
 
 def _local_config() -> dict:
-    return _read_json_file(LOCAL_CONFIG)
+    # 优先稳定数据目录，其次兼容旧位置(cwd/dist 下的 jira_config.json)
+    for path in (os.path.join(data_dir(), LOCAL_CONFIG), LOCAL_CONFIG):
+        cfg = _read_json_file(path)
+        if cfg:
+            return cfg
+    return {}
 
 
 def _weekly_config() -> dict:

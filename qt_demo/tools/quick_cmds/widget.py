@@ -35,6 +35,11 @@ SKIP_SETUP_STEPS = [
 ]
 NT_LOG_REMOTE = "/sdcard/Android/data/com.nothing.logkit/files/logs/"
 
+# ===== Goodix TA 固件推送 =====
+DEFAULT_TA_SOURCE_DIR = r"Y:\code\ta\NothingSecurityCode\qcom\out\user\nt_signed"
+GOODIX_TA_FILES = [f"goodixfp64.b{i:02d}" for i in range(9)] + ["goodixfp64.mdt"]
+GOODIX_TA_TARGET = "/vendor/firmware"
+
 
 class CommandWorker(QThread):
     """通用命令序列执行器"""
@@ -118,18 +123,6 @@ class QuickCmdsWidget(BaseToolWidget):
         self._btns = {}
         self._worker = None
 
-        # 设备状态
-        env_group = QGroupBox("设备状态")
-        env_row = QHBoxLayout(env_group)
-        self._env_label = QLabel("未检测")
-        self._env_label.setStyleSheet("font-size: 13px;")
-        env_row.addWidget(self._env_label)
-        env_row.addStretch()
-        btn_check = QPushButton("检测设备")
-        btn_check.clicked.connect(self._check_env)
-        env_row.addWidget(btn_check)
-        layout.addWidget(env_group)
-
         # A 组：设备快捷操作
         dev_group = QGroupBox("设备快捷操作")
         dev_layout = QVBoxLayout(dev_group)
@@ -157,6 +150,31 @@ class QuickCmdsWidget(BaseToolWidget):
         self._btns["进到刷机模式 (EDL)"] = btn_reboot_edl
         self._btns["跳过开机向导"] = btn_skip_setup
         layout.addWidget(dev_group)
+
+        # C 组：Goodix TA 固件推送
+        ta_group = QGroupBox("Goodix TA 固件推送")
+        ta_layout = QVBoxLayout(ta_group)
+        ta_layout.setSpacing(8)
+
+        ta_row = QHBoxLayout()
+        ta_row.addWidget(self._label("固件源目录:"))
+        self._ta_dir_input = QLineEdit(DEFAULT_TA_SOURCE_DIR)
+        self._ta_dir_input.setPlaceholderText("Goodix TA 固件输出目录 (nt_signed)")
+        ta_row.addWidget(self._ta_dir_input, 1)
+        btn_browse_ta = QPushButton("浏览...")
+        btn_browse_ta.clicked.connect(self._browse_ta_dir)
+        ta_row.addWidget(btn_browse_ta)
+        ta_layout.addLayout(ta_row)
+
+        btn_push_ta = QPushButton("推送 TA 固件")
+        btn_push_ta.setFixedWidth(160)
+        btn_push_ta.setStyleSheet(self._btn_style("#2980B9", "#1F618D"))
+        btn_push_ta.clicked.connect(self._run_push_goodix_ta)
+        ta_layout.addLayout(self._op_row(btn_push_ta,
+            "adb root + remount，推送 goodixfp64.b00~b08/.mdt 到 /vendor/firmware，sync + 重启"))
+
+        self._btns["推送 TA 固件"] = btn_push_ta
+        layout.addWidget(ta_group)
 
         # B 组：日志/构建导出
         exp_group = QGroupBox("日志 / 构建导出")
@@ -268,18 +286,6 @@ class QuickCmdsWidget(BaseToolWidget):
 
     # ===== 动作 =====
 
-    def _check_env(self):
-        self._output.clear()
-        try:
-            p = subprocess.run("adb version", shell=True, capture_output=True, text=True, timeout=5, creationflags=CREATE_NO_WINDOW)
-            self._env_label.setText("ADB 环境正常")
-            self._env_label.setStyleSheet("font-size: 13px; color: green; font-weight: bold;")
-            self._output.append(f">>> adb version\n{p.stdout.strip()}")
-        except Exception as e:
-            self._env_label.setText("ADB 环境异常")
-            self._env_label.setStyleSheet("font-size: 13px; color: red; font-weight: bold;")
-            self._output.append(f"ERROR: {e}")
-
     def _browse_nt_dir(self):
         path = QFileDialog.getExistingDirectory(self, "选择 NT 日志保存目录", self._nt_dir_input.text())
         if path:
@@ -319,6 +325,38 @@ class QuickCmdsWidget(BaseToolWidget):
 
     def _run_skip_setup(self):
         self._start("跳过开机向导", list(SKIP_SETUP_STEPS))
+
+    # Goodix TA 固件推送
+
+    def _browse_ta_dir(self):
+        path = QFileDialog.getExistingDirectory(self, "选择固件源目录", self._ta_dir_input.text())
+        if path:
+            self._ta_dir_input.setText(path)
+
+    def _run_push_goodix_ta(self):
+        src_dir = self._ta_dir_input.text().strip()
+        if not src_dir:
+            QMessageBox.warning(self, "警告", "请输入固件源目录")
+            return
+        src_path = Path(src_dir)
+        if not src_path.is_dir():
+            QMessageBox.warning(self, "警告", f"固件源目录不存在: {src_path}")
+            return
+        # 与 push_goodix_ta.bat 一致：root → wait → remount → wait → 逐个 push → sync → reboot
+        steps = [
+            {"cmd": "adb root", "timeout": 30, "ignore_error": False},
+            {"cmd": "adb wait-for-device", "timeout": 30, "ignore_error": False},
+            {"cmd": "adb remount", "timeout": 30, "ignore_error": False},
+            {"cmd": "adb wait-for-device", "timeout": 30, "ignore_error": False},
+        ]
+        for f in GOODIX_TA_FILES:
+            full = src_path / f
+            # 单个文件推送失败不中断整体，与 bat 逐个上报并继续的行为一致
+            steps.append({"cmd": ["adb", "push", str(full), GOODIX_TA_TARGET],
+                          "timeout": 30, "ignore_error": True})
+        steps.append({"cmd": "adb shell sync", "timeout": 30, "ignore_error": False})
+        steps.append({"cmd": "adb reboot", "timeout": 15, "ignore_error": True})
+        self._start("推送 Goodix TA 固件", steps)
 
     # 日志/构建导出
 

@@ -7,8 +7,9 @@ import os
 import tempfile
 
 from .models import Item
+from ...data_dir import data_dir
 
-DATA_FILE = "workspace_data.json"
+DATA_FILE = os.path.join(data_dir(), "workspace_data.json")
 
 
 def load_data():
@@ -35,7 +36,7 @@ def save_data(tags, items):
         "tags": list(tags),
         "items": [item.to_dict() for item in items],
     }
-    fd, tmp_path = tempfile.mkstemp(dir=".", suffix=".tmp")
+    fd, tmp_path = tempfile.mkstemp(dir=data_dir(), suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)

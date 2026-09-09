@@ -1,0 +1,25 @@
+[2026-09-04 17:40:28.632][22200][main] FDPP running: V2.00.49.1
+[2026-09-04 17:40:28.633][22200][main] Core lib version: 3.00.18
+[2026-09-04 17:40:28.664][22200][gf_data_decrypt] [gf_auth_init]version = 2.00.37
+[2026-09-04 17:40:28.664][22200][main] Tool path: D:/Work/4_ии?????/fp_speed/fp_speed_git/develop_tools/assets/fdpp
+[2026-09-04 17:40:28.665][22200][main] Work path: D:/Work/4_ии?????/fp_speed/fp_speed_git/develop_tools/assets/fdpp
+[2026-09-04 17:40:30.227][22200][LoginDialog::on_loginButton_clicked] username=gpid_20500013804 password=******
+[2026-09-04 17:40:30.229][22200][LoginDialog::on_loginButton_clicked] start LoginThread
+[2026-09-04 17:40:30.230][23496][gf_data_decrypt] [gf_auth_user]User type : 1
+[2026-09-04 17:40:30.476][23496][LoginThread::run] gf_data_authority() ret: 0
+[2026-09-04 17:40:30.480][23496][LoginThread::run] userPermission: saved=0, preview=1
+[2026-09-04 17:40:30.484][22200][LoginDialog::on_loginRequestReturned] LoginThread return: 0
+[2026-09-04 17:40:30.484][22200][LoginDialog::on_loginRequestReturned] authority success ^_^
+[2026-09-04 17:40:30.498][22200][FingerprintDataParserWindow::on_iconModeRadioButton_clicked] enter
+[2026-09-04 17:40:30.499][22200][FingerprintDataParserWindow::on_iconModeRadioButton_clicked] exit
+[2026-09-04 17:40:30.500][22200][FingerprintDataParserWindow::setUserPermission] saved=0, preview=1
+[2026-09-04 17:40:30.501][22200][FingerprintDataParserWindow::setDataVersionVisibility] vendorID=050
+[2026-09-04 17:40:30.589][22200][FingerprintDataParserWindow::pluginExec] Enter main window.
+[2026-09-04 17:40:37.007][22200][FingerprintDataParserWindow::closeEvent] Software exit.
+[2026-09-04 17:40:37.017][22200][FingerprintDataParserWindow::~FingerprintDataParserWindow] enter
+[2026-09-04 17:40:37.018][22200][FingerprintDataParserWindow::clearPreviewListWidget] before clear, itemTotalCount: 0
+[2026-09-04 17:40:37.019][22200][FingerprintDataParserWindow::clearPreviewListWidget] after clear, itemTotalCount: 0
+[2026-09-04 17:40:37.020][22200][FingerprintDataParserWindow::~FingerprintDataParserWindow] exit
+
+
+

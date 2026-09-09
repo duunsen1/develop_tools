@@ -18,8 +18,9 @@ from PySide6.QtCore import Qt, Signal, QThread, QTimer
 
 from ...base_tool_widget import BaseToolWidget
 from ...win_proc import CREATE_NO_WINDOW
+from ...data_dir import data_dir
 
-HISTORY_FILE = "log_keyword_history.txt"
+HISTORY_FILE = os.path.join(data_dir(), "log_keyword_history.txt")
 DEFAULT_DIR = "D:/Joyboy"
 
 LOG_TYPES = {

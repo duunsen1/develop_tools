@@ -5,6 +5,7 @@
 
 import os
 import subprocess
+import sys
 from datetime import datetime
 
 from PySide6.QtWidgets import (
@@ -12,7 +13,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QTextEdit, QFileDialog, QMessageBox, QLineEdit,
     QProgressBar,
 )
-from PySide6.QtCore import Qt, Signal, QThread
+from PySide6.QtCore import Qt, Signal, QThread, QTimer
 
 from ...base_tool_widget import BaseToolWidget
 from ...win_proc import CREATE_NO_WINDOW
@@ -157,25 +158,27 @@ class FpDumpWidget(BaseToolWidget):
         btn_enable.setToolTip("adb root + setenforce 0 + 两个 setprop dump_data 1")
         btn_enable.clicked.connect(lambda: self._run("开启指纹 Dump", _enable_steps()))
         self._style_button(btn_enable, "#27AE60", "#219A52")
-        op_layout.addLayout(self._btn_row(btn_enable))
 
         btn_clear_all = QPushButton("清除全部 Dump 数据")
         btn_clear_all.setToolTip("rm -rf /data/vendor/fpdump/*")
         btn_clear_all.clicked.connect(lambda: self._run("清除全部 Dump 数据", _clear_all_steps()))
         self._style_button(btn_clear_all, "#E67E22", "#CA6F1E")
-        op_layout.addLayout(self._btn_row(btn_clear_all))
 
         btn_clear_unlock = QPushButton("清除解锁 Dump 数据")
         btn_clear_unlock.setToolTip("rm -rf /data/vendor/fpdump/gfp/0/3020511/auth/*")
         btn_clear_unlock.clicked.connect(lambda: self._run("清除解锁 Dump 数据", _clear_unlock_steps()))
         self._style_button(btn_clear_unlock, "#E74C3C", "#C0392B")
-        op_layout.addLayout(self._btn_row(btn_clear_unlock))
 
         btn_pull = QPushButton("导出 Dump 数据")
         btn_pull.setToolTip("adb pull /data/vendor/fpdump/ 和 /data/vendor/goodix/ 到本地")
         btn_pull.clicked.connect(self._on_pull)
         self._style_button(btn_pull, "#3498DB", "#2980B9")
-        op_layout.addLayout(self._btn_row(btn_pull))
+
+        op_row = QHBoxLayout()
+        op_row.setSpacing(8)
+        for btn in (btn_enable, btn_clear_all, btn_clear_unlock, btn_pull):
+            op_row.addWidget(btn, 1)
+        op_layout.addLayout(op_row)
 
         self._btns = {
             "开启指纹 Dump": btn_enable,
@@ -184,6 +187,52 @@ class FpDumpWidget(BaseToolWidget):
             "导出 Dump 数据": btn_pull,
         }
         layout.addWidget(op_group)
+
+        # ---- FDPP 解析工具 ----
+        fdpp_group = QGroupBox("Dump 解析工具 (FDPP)")
+        fdpp_layout = QVBoxLayout(fdpp_group)
+        fdpp_layout.setSpacing(8)
+
+        # FDPP 路径解析
+        if getattr(sys, "frozen", False):
+            fdpp_dir = os.path.join(os.path.dirname(sys.executable), "_internal", "assets", "fdpp")
+        else:
+            fdpp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "assets", "fdpp")
+        self._fdpp_exe = os.path.join(fdpp_dir, "FDPP-V2.00.49.1.exe")
+
+        # 路径显示
+        path_row = QHBoxLayout()
+        path_row.addWidget(QLabel("工具路径:"))
+        self._fdpp_path_label = QLabel(self._fdpp_exe)
+        self._fdpp_path_label.setStyleSheet("font-size: 12px; color: #7F8C8D;")
+        self._fdpp_path_label.setWordWrap(True)
+        path_row.addWidget(self._fdpp_path_label, 1)
+        fdpp_layout.addLayout(path_row)
+
+        # 状态 + 操作按钮
+        ctrl_row = QHBoxLayout()
+        self._fdpp_status_label = QLabel("未启动")
+        self._fdpp_status_label.setStyleSheet("font-size: 13px; color: #95A5A6;")
+        ctrl_row.addWidget(self._fdpp_status_label)
+        ctrl_row.addStretch()
+
+        self._btn_fdpp_start = QPushButton("启动 FDPP 解析工具")
+        self._btn_fdpp_start.setToolTip("启动 FDPP-V2.00.49.1 独立解析工具")
+        self._btn_fdpp_start.clicked.connect(self._start_fdpp)
+        self._style_button(self._btn_fdpp_start, "#8E44AD", "#7D3C98")
+        self._btn_fdpp_start.setFixedWidth(160)
+        ctrl_row.addWidget(self._btn_fdpp_start)
+
+        self._btn_fdpp_stop = QPushButton("关闭 FDPP")
+        self._btn_fdpp_stop.setToolTip("关闭正在运行的 FDPP 解析工具")
+        self._btn_fdpp_stop.clicked.connect(self._stop_fdpp)
+        self._style_button(self._btn_fdpp_stop, "#E74C3C", "#C0392B")
+        self._btn_fdpp_stop.setFixedWidth(120)
+        self._btn_fdpp_stop.setEnabled(False)
+        ctrl_row.addWidget(self._btn_fdpp_stop)
+
+        fdpp_layout.addLayout(ctrl_row)
+        layout.addWidget(fdpp_group)
 
         # ---- 导出目录 ----
         pull_group = QGroupBox("导出目录")
@@ -219,6 +268,12 @@ class FpDumpWidget(BaseToolWidget):
 
         self._worker = None
 
+        # ---- FDPP 进程管理 ----
+        self._fdpp_process = None
+        self._fdpp_poll_timer = QTimer(self)
+        self._fdpp_poll_timer.timeout.connect(self._poll_fdpp)
+        self._fdpp_poll_timer.setInterval(2000)
+
     # ===== UI 辅助 =====
 
     @staticmethod
@@ -229,13 +284,6 @@ class FpDumpWidget(BaseToolWidget):
             QPushButton:hover {{ background-color: {hover}; }}
             QPushButton:disabled {{ background-color: #BDC3C7; }}
         """)
-
-    def _btn_row(self, btn):
-        row = QHBoxLayout()
-        btn.setFixedWidth(180)
-        row.addWidget(btn)
-        row.addStretch()
-        return row
 
     # ===== 动作 =====
 
@@ -302,3 +350,87 @@ class FpDumpWidget(BaseToolWidget):
     def on_deactivate(self):
         if self._worker is not None and self._worker.isRunning():
             self._worker.wait(1000)
+
+    # ===== FDPP 进程管理 =====
+
+    def _start_fdpp(self):
+        """启动 FDPP 独立解析工具"""
+        if not os.path.isfile(self._fdpp_exe):
+            # 回退尝试：当前目录下 assets/fdpp/
+            fallback = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "assets", "fdpp", "FDPP-V2.00.49.1.exe")
+            if os.path.isfile(fallback):
+                self._fdpp_exe = fallback
+            else:
+                QMessageBox.critical(self, "错误", f"找不到 FDPP 解析工具:\n{self._fdpp_exe}")
+                return
+
+        if self._fdpp_process is not None and self._fdpp_process.poll() is None:
+            QMessageBox.information(self, "提示", "FDPP 解析工具已在运行中")
+            return
+
+        fdpp_dir = os.path.dirname(self._fdpp_exe)
+        try:
+            self._fdpp_process = subprocess.Popen(
+                [self._fdpp_exe],
+                cwd=fdpp_dir,
+                creationflags=CREATE_NO_WINDOW,
+            )
+            self._update_fdpp_ui_state(True)
+            self._output.append(f"\n✅ FDPP 解析工具已启动 (PID: {self._fdpp_process.pid})")
+            self._output.append(f"   路径: {self._fdpp_exe}")
+            self._fdpp_poll_timer.start()
+        except Exception as e:
+            self._fdpp_process = None
+            self._update_fdpp_ui_state(False)
+            self._output.append(f"\nERROR: 启动 FDPP 失败: {e}")
+            QMessageBox.critical(self, "错误", f"启动 FDPP 失败:\n{e}")
+
+    def _stop_fdpp(self):
+        """关闭正在运行的 FDPP 进程"""
+        if self._fdpp_process is None:
+            return
+
+        pid = self._fdpp_process.pid
+        try:
+            self._fdpp_process.terminate()
+            # 等待进程退出（最多 5 秒）
+            if not self._fdpp_process.wait(5000):
+                self._fdpp_process.kill()
+                self._fdpp_process.wait(3000)
+            self._output.append(f"\n⚠ FDPP 解析工具已关闭 (PID: {pid})")
+        except Exception as e:
+            self._output.append(f"\nERROR: 关闭 FDPP 失败: {e}")
+        finally:
+            self._fdpp_process = None
+            self._fdpp_poll_timer.stop()
+            self._update_fdpp_ui_state(False)
+
+    def _poll_fdpp(self):
+        """定时轮询 FDPP 进程状态"""
+        if self._fdpp_process is None:
+            self._fdpp_poll_timer.stop()
+            self._update_fdpp_ui_state(False)
+            return
+
+        ret = self._fdpp_process.poll()
+        if ret is not None:
+            # 进程已退出
+            self._fdpp_process = None
+            self._fdpp_poll_timer.stop()
+            self._update_fdpp_ui_state(False)
+            msg = f"FDPP 解析工具已退出 (exit code: {ret})"
+            self._fdpp_status_label.setText(msg)
+            self._output.append(f"\n⚠ {msg}")
+
+    def _update_fdpp_ui_state(self, running: bool):
+        """更新 FDPP 相关 UI 控件状态"""
+        if running:
+            self._fdpp_status_label.setText("运行中")
+            self._fdpp_status_label.setStyleSheet("font-size: 13px; color: #27AE60; font-weight: bold;")
+            self._btn_fdpp_start.setEnabled(False)
+            self._btn_fdpp_stop.setEnabled(True)
+        else:
+            self._fdpp_status_label.setText("未启动")
+            self._fdpp_status_label.setStyleSheet("font-size: 13px; color: #95A5A6;")
+            self._btn_fdpp_start.setEnabled(True)
+            self._btn_fdpp_stop.setEnabled(False)

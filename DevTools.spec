@@ -16,6 +16,10 @@ a = Analysis(
         ('qt_demo/tools/scrcpy/scrcpy', 'qt_demo/tools/scrcpy/scrcpy'),
         # 程序图标：main.py 从 _internal/assets 加载
         ('assets/devtools.ico', 'assets'),
+        # FDPP 指纹数据解析工具：widget.py 从 _internal/assets/fdpp 加载
+        ('assets/fdpp/FDPP-V2.00.49.1.exe', 'assets/fdpp'),
+        ('assets/fdpp/libcurl.dll', 'assets/fdpp'),
+        ('assets/fdpp/msvcr120d.dll', 'assets/fdpp'),
     ],
     hiddenimports=[],
     hookspath=[],
