@@ -3,8 +3,10 @@
 """
 
 import os
+import re
 import subprocess
 from pathlib import Path
+from PySide6.QtGui import QGuiApplication
 
 from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtWidgets import (
@@ -122,29 +124,28 @@ class QuickCmdsWidget(BaseToolWidget):
 
         self._btns = {}
         self._worker = None
+        self._last_export_path = ""
 
-        # A 组：设备快捷操作
+        # A 组：设备快捷操作（单行三按钮）
         dev_group = QGroupBox("设备快捷操作")
-        dev_layout = QVBoxLayout(dev_group)
-        dev_layout.setSpacing(8)
+        dev_layout = QHBoxLayout(dev_group)
+        dev_layout.setSpacing(12)
 
         btn_open_fp = QPushButton("打开指纹校准界面")
-        btn_open_fp.setFixedWidth(160)
         btn_open_fp.setStyleSheet(self._btn_style("#27AE60", "#1E8449"))
         btn_open_fp.clicked.connect(self._run_open_fp)
-        dev_layout.addLayout(self._op_row(btn_open_fp, "打开 Goodix 指纹校准 SPMT1Activity"))
 
         btn_reboot_edl = QPushButton("进到刷机模式 (EDL)")
-        btn_reboot_edl.setFixedWidth(160)
         btn_reboot_edl.setStyleSheet(self._btn_style("#E67E22", "#CA6F1E"))
         btn_reboot_edl.clicked.connect(self._run_reboot_edl)
-        dev_layout.addLayout(self._op_row(btn_reboot_edl, "adb reboot edl"))
 
         btn_skip_setup = QPushButton("跳过开机向导")
-        btn_skip_setup.setFixedWidth(160)
         btn_skip_setup.setStyleSheet(self._btn_style("#E74C3C", "#C0392B"))
         btn_skip_setup.clicked.connect(self._run_skip_setup)
-        dev_layout.addLayout(self._op_row(btn_skip_setup, "adb root + pm disable setupwizard + settings put ×2 + 重启"))
+
+        dev_layout.addWidget(btn_open_fp, 1)
+        dev_layout.addWidget(btn_reboot_edl, 1)
+        dev_layout.addWidget(btn_skip_setup, 1)
 
         self._btns["打开指纹校准界面"] = btn_open_fp
         self._btns["进到刷机模式 (EDL)"] = btn_reboot_edl
@@ -226,6 +227,19 @@ class QuickCmdsWidget(BaseToolWidget):
         self._btns["导出 NT 日志并解压"] = btn_pull_nt_zip
         layout.addWidget(exp_group)
 
+        # 复制栏：成功后一键复制输出中解析到的本地路径
+        copy_row = QHBoxLayout()
+        self._copy_hint = QLabel("")
+        self._copy_hint.setStyleSheet("color: #7F8C8D; font-size: 13px;")
+        copy_row.addWidget(self._copy_hint, 1)
+        self._copy_btn = QPushButton("复制路径")
+        self._copy_btn.setFixedWidth(90)
+        self._copy_btn.setStyleSheet(self._btn_style("#3498DB", "#2980B9"))
+        self._copy_btn.setEnabled(False)
+        self._copy_btn.clicked.connect(self._copy_path)
+        copy_row.addWidget(self._copy_btn)
+        layout.addLayout(copy_row)
+
         # 进度条
         self._progress = QProgressBar()
         self._progress.setRange(0, 0)
@@ -306,6 +320,12 @@ class QuickCmdsWidget(BaseToolWidget):
 
     def _on_output(self, text):
         self._output.append(text)
+        # 成功输出里带路径时自动启用"复制路径"按钮
+        if "Copied to:" in text or "Path:" in text:
+            path = self._extract_local_path(text)
+            if path:
+                self._last_export_path = path
+                self._refresh_copy_btn()
 
     def _on_finished(self, ok, msg, label):
         self._set_busy(False)
@@ -314,6 +334,38 @@ class QuickCmdsWidget(BaseToolWidget):
         else:
             self._output.append(f"\nFAILED: {msg}")
             QMessageBox.critical(self, "错误", f"{label} 失败: {msg}")
+            self._refresh_copy_btn()
+
+    @staticmethod
+    def _extract_local_path(text):
+        # 优先 "Copied to: <path>"（testlog 脚本），其次 "Path: <path>"（构建导出脚本）
+        for prefix in ("Copied to:", "Path:"):
+            for line in text.splitlines():
+                line = line.strip()
+                if line.startswith(prefix):
+                    return line[len(prefix):].strip().strip('"')
+        # 兜底：最后出现的本地盘目录路径
+        m = re.findall(r'[A-Za-z]:\\[^\s"\'|<>:;]+\\?', text)
+        return m[-1] if m else None
+
+    def _refresh_copy_btn(self):
+        if self._last_export_path:
+            self._copy_hint.setText(f"上次导出位置: {self._last_export_path}")
+            self._copy_btn.setEnabled(True)
+        else:
+            self._copy_hint.setText("")
+            self._copy_btn.setEnabled(False)
+
+    def _copy_path(self):
+        path = self._last_export_path
+        if not path:
+            return
+        QGuiApplication.clipboard().setText(path)
+        hint = self._copy_hint
+        hint.setText(f"已复制到剪贴板: {path}")
+        hint.setStyleSheet("color: #27AE60; font-size: 13px; font-weight: bold;")
+        self._copy_btn.setEnabled(False)
+
 
     # 设备快捷操作
 
